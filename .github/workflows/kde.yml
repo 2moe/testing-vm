@@ -130,7 +130,7 @@ jobs:
             GRUB_SERIAL_COMMAND="serial --speed=4000000"
             APPEND_GRUB_CFG
             update-grub
-            sed -E 's@^(Port)\s.*@\1 9024@' -i /etc/ssh/sshd_config.d/vm.conf
+            sed -E 's@^(Port)\s.*@\1 22@' -i /etc/ssh/sshd_config.d/vm.conf
 
       - name: change the config
         timeout-minutes: 7
@@ -143,7 +143,7 @@ jobs:
             -E
             -e '/debian-vm-minimal/ s@(name)=.*@\1=debian-sid-kde@'
             -e 's@^(external_kernel)=.*@\1=false@'
-            -e 's@^(integer\s+guest_ssh_port)=.*@\1=9024@'
+            -e 's@^(integer\s+guest_ssh_port)=.*@\1=22@'
             -i run
           )
           sed $sed_args
