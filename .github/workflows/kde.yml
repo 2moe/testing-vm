@@ -159,10 +159,11 @@ jobs:
           }
 
           scp=(scp -F ssh/vm.sshconf -r)
+          $scp editor-demo user@vm:~/bin/
+
           d=${{env.DEV_DIR}}
           $scp $d/etc vm:/
           $scp $d/config/* user@vm:~/.config/
-          $scp $d/editor-demo user@vm:~/bin/
 
       - name: install plasma desktop & fcitx5
         uses: 2moe/local-ssh-action@v0
@@ -222,10 +223,11 @@ jobs:
           for f (*(.x)) {
             zcompile -Uz $f ||:
           }
+          cp -p ${{env.DEV_DIR}}/run-vnc .
 
           files=(
             disk.qcow2
-            run
+            run*
             *.zwc
             Readme.*
             connect-to-ssh
