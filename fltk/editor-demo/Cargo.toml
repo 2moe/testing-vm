@@ -4,4 +4,7 @@ version = "0.0.1"
 edition = "2021"
 
 [dependencies]
-fltk = { version = "1.4.28", features = ["use-ninja", "use-wayland"] }
+fltk = { git = "https://github.com/fltk-rs/fltk-rs", features = [
+    "use-ninja",
+    "use-wayland",
+] }
