@@ -250,7 +250,7 @@ jobs:
             $files
           )
           tar $args
-          split -b 1K -d $file ${file}.
+          split -b 1024M -d $file ${file}.
 
       - name: release
         uses: softprops/action-gh-release@v2
