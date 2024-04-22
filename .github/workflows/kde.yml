@@ -160,8 +160,8 @@ jobs:
 
           scp=(scp -F ssh/vm.sshconf -r)
           d=${{env.DEV_DIR}}
+          $scp $d/etc vm:/
           $scp $d/config/* user@vm:~/.config/
-          $scp $d/etc user@vm:/
           $scp $d/editor-demo user@vm:~/bin/
 
       - name: install plasma desktop & fcitx5
