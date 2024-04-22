@@ -210,7 +210,7 @@ jobs:
           sed_args=(
             -E
             -e 's@^(\s{2,})disk\.img$@\1disk.qcow2@'
-            -e 's@^(no_graphic)=.*@\1false@'
+            -e 's@^(no_graphic)=.*@\1=false@'
             -i run
           )
           sed $sed_args
