@@ -45,3 +45,16 @@ apt install qemu-system-x86 tigervnc-viewer
 ```sh
 ./run-vnc
 ```
+
+6. optional
+
+- disable firewall
+
+![disable-firewall.jpg](./assets/img/firewall.jpg)
+
+- set passwd
+
+```sh
+su -
+passwd user
+```
