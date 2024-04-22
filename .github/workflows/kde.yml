@@ -224,6 +224,7 @@ jobs:
           for f (*(.x)) {
             zcompile -Uz $f ||:
           }
+
           cp -p ${{env.DEV_DIR}}/run-vnc .
 
           files=(

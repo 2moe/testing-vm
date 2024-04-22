@@ -1,15 +1,18 @@
 #!/usr/bin/env zsh
 set -fexo pipefail
+# Depends: tigervnc-viewer
 # ---------------
 src_dir=${0:a:h}
+vnc_address=127.0.0.1:5
+
+(sleep 2 && vncviewer $vnc_address) &
+
 args=(
-    -vnc 127.0.0.1:5
+    -vnc $vnc_address
     -vga virtio
     -device qemu-xhci
     -device usb-kbd
     -device usb-tablet
     # -audio pa,model=hda
 )
-timeout 9 tmux new-session -s qemu-$RANDOM "$src_dir/run $args" ||:
-
-$src_dir/connect-to-ssh
+$src_dir/run $args
