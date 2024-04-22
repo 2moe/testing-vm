@@ -1,0 +1,243 @@
+name: KDE Plasma virtual machine
+# auto-task.start-build-time = ?
+env:
+  DEV_DIR: assets/kde
+  VM_SHUTDOWN: "ssh -F ssh/vm.sshconf vm poweroff ||:"
+  SSH_VM: "ssh -F ssh/vm.sshconf vm"
+  new_task: "tmux new-session -d"
+  #
+  RELEASE_TAG: unstable
+  CODENAME: sid
+  ROOTFS_REPO: "debian-sid:"
+on:
+  push:
+    paths:
+      - .github/workflows/kde.yml
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # - arch: arm64
+          #   deb_arch: arm64
+          #   qemu_pkg_arch: arm
+          #   tty: ttyAMA0
+          #   net: enp0s1
+
+          - arch: x64
+            deb_arch: amd64
+            qemu_pkg_arch: x86
+            tty: ttyS0
+            net: enp0s2
+
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: zsh --pipefail -fex {0}
+    steps:
+      - name: install zsh
+        if: runner.arch == 'X64'
+        shell: sh -e {0}
+        run: docker run --rm -v /usr/local/bin:/host ghcr.io/2moe/zsh-static cp zsh /host
+
+      - uses: actions/checkout@v4
+
+      - name: download qemu image
+        env:
+          url: "https://github.com/2cd/debian-museum/releases/download/${{env.RELEASE_TAG}}/vm-minimal_${{env.CODENAME}}_${{matrix.arch}}.tar.zst"
+        run: |
+          curl -LO 'https://raw.githubusercontent.com/2cd/debian-museum/build/assets/vm-minimal/scripts/apt-install'
+          sudo install -Dm755 apt-install /usr/local/bin/apt-install
+
+          apt-install aria2
+          apt-install qemu-system-${{matrix.qemu_pkg_arch}} &
+          task=$!
+          aria2c -s5 -x5 -k1m --no-conf -o min.tzst "$url"
+          tar -xf min.tzst
+
+          cp -vf ${{env.DEV_DIR}}/* . ||:
+          unlink min.tzst
+          sed -E 's@(Port).*[0-9]$@\1 9024@' -i ssh/vm.sshconf
+          sed -E 's@^(integer\s+ssh_port)=.*@\1=9024@' -i run
+          cat ssh/vm.sshconf
+          wait $task
+
+      - name: run vm
+        timeout-minutes: 5
+        run: |
+          qemu-img resize disk.img +4G
+          sudo chmod 666 -v /dev/kvm
+          ${{env.new_task}} ./run
+          sleep 2
+          while {! ${{env.SSH_VM}} exit} {
+            sleep 1
+          }
+
+      - name: install kernel
+        uses: 2moe/local-ssh-action@v0
+        with:
+          host: vm
+          args: |
+            -F
+            ssh/vm.sshconf
+          run: |
+            cmt="# "
+
+            >> /etc/fstab <<FSTAB
+            LABEL=rootfs /          ext4   defaults,rw,noatime 0 1
+            ${cmt}LABEL=BOOT   /boot/efi  vfat   umask=0077          0 1
+            tmpfs        /tmp       tmpfs  defaults,nofail     0 0
+            FSTAB
+
+            lsblk -f
+            apt-install
+            apt-install linux-image-${{matrix.deb_arch}}
+            useradd -m user
+            usermod -aG sudo user
+            cp -a ~/.ssh /home/user/
+            mkdir -p /home/user/.config
+            chown -Rv user:user /home/user/.ssh /home/user/.config
+
+      - name: install grub
+        uses: 2moe/local-ssh-action@v0
+        with:
+          host: vm
+          args: |
+            -F
+            ssh/vm.sshconf
+          run: |
+            lsblk -f
+            df -Th
+
+            apt-install grub2
+            grub-install /dev/vda
+
+            >> /etc/default/grub <<"APPEND_GRUB_CFG"
+            GRUB_TIMEOUT=1
+            GRUB_TERMINAL="console serial"
+            GRUB_CMDLINE_LINUX_DEFAULT=""
+            GRUB_CMDLINE_LINUX="console=tty0 console=${{matrix.tty}}"
+            GRUB_SERIAL_COMMAND="serial --speed=4000000"
+            APPEND_GRUB_CFG
+            update-grub
+            sed -E 's@^(Port)\s.*@\1 9024@' -i /etc/ssh/sshd_config.d/vm.conf
+
+      - name: change the config
+        timeout-minutes: 7
+        run: |
+          ${{env.VM_SHUTDOWN}}
+          while {lsof disk.img} {
+            sleep 1
+          }
+          sed_args=(
+            -E
+            -e '/debian-vm-minimal/ s@(name)=.*@\1=debian-sid-kde@'
+            -e 's@^(external_kernel)=.*@\1=false@'
+            -e 's@^(integer\s+guest_ssh_port)=.*@\1=9024@'
+            -i run
+          )
+          sed $sed_args
+          ${{env.new_task}} ./run
+          cat run
+          sleep 6
+          while {! ${{env.SSH_VM}} exit} {
+            sleep 1
+          }
+          scp=(scp -F ssh/vm.sshconf -r)
+          d=${{env.DEV_DIR}}
+          $scp $d/config/* user@vm:~/.config
+          $scp $d/etc user@vm:/
+
+      - name: install plasma desktop & fcitx5
+        uses: 2moe/local-ssh-action@v0
+        with:
+          host: vm
+          args: |
+            -F
+            ssh/vm.sshconf
+          run: |
+            env DEBIAN_FRONTEND=noninteractive  apt-get dist-upgrade -y
+
+            df -Th
+            pkgs=(
+              plasma-{desktop,workspace-wayland}
+              fonts-noto-{cjk,color-emoji}
+              konsole
+              sddm
+              fcitx5-chinese-addons
+            )
+            apt-install $pkgs
+
+            systemctl disable systemd-networkd-wait-online.service
+            systemctl set-default graphical.target
+
+            apt-get autopurge -y
+            apt-get clean
+            journalctl --rotate ||:
+            journalctl --vacuum-time=1s ||:
+            df -Th
+            ls -lh /var/cache/apt
+            rm -vf /var/lib/apt/lists/*.* ||:
+
+      - name: pack vm
+        run: |
+          ${{env.VM_SHUTDOWN}}
+          apt-install b3sum
+          while {lsof disk.img} {
+            sleep 1
+          }
+          qemu-img convert -O qcow2 disk.img disk.qcow2
+          ls -lh disk.img disk.qcow2
+          unlink disk.img
+          sed_args=(
+            -E
+            -e 's@^(\s{2,})disk\.img$@\1disk.qcow2@'
+            -e 's@^(no_graphic)=.*@\1false@'
+            -i run
+          )
+          sed $sed_args
+
+          unlink blake3.txt        ||:
+          rm -fv boot/initrd.*     ||:
+          rm -fv boot/System.map-* ||:
+          rm -fv boot/vmlinu*      ||:
+
+          setopt extended_glob
+          for f (*(.x)) {
+            zcompile -Uz $f ||:
+          }
+
+          files=(
+            disk.qcow2
+            run
+            *.zwc
+            Readme.*
+            connect-to-ssh
+            get-file-from-vm
+            send-file-to-vm
+          )
+          for f ($files boot/* ssh/*) {
+            b3sum $f >> blake3.txt ||:
+          }
+          for f (boot ssh blake3.txt) {
+            files+=$f
+          }
+
+          args=(
+            --posix
+            --use-compress-program='zstdmt --long -18v'
+            -cf vm-editor-demo_${{env.CODENAME}}_${{matrix.arch}}.tar.zst
+            $files
+          )
+          tar $args
+
+      - name: release
+        uses: softprops/action-gh-release@v2
+        with:
+          fail_on_unmatched_files: true
+          tag_name: ${{env.RELEASE_TAG}}
+          files: |
+            *.tar.zst
