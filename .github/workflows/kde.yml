@@ -6,9 +6,8 @@ env:
   SSH_VM: "ssh -F ssh/vm.sshconf vm"
   new_task: "tmux new-session -d"
   #
-  RELEASE_TAG: unstable
+  RELEASE_TAG: kde
   CODENAME: sid
-  ROOTFS_REPO: "debian-sid:"
 on:
   push:
     paths:
@@ -54,7 +53,7 @@ jobs:
 
       - name: download qemu image
         env:
-          url: "https://github.com/2cd/debian-museum/releases/download/${{env.RELEASE_TAG}}/vm-minimal_${{env.CODENAME}}_${{matrix.arch}}.tar.zst"
+          url: "https://github.com/2cd/debian-museum/releases/download/unstable/vm-minimal_${{env.CODENAME}}_${{matrix.arch}}.tar.zst"
         run: |
           curl -LO 'https://raw.githubusercontent.com/2cd/debian-museum/build/assets/vm-minimal/scripts/apt-install'
           sudo install -Dm755 apt-install /usr/local/bin/apt-install
@@ -75,7 +74,7 @@ jobs:
       - name: run vm
         timeout-minutes: 5
         run: |
-          qemu-img resize disk.img +4G
+          qemu-img resize disk.img +8G
           sudo chmod 666 -v /dev/kvm
           ${{env.new_task}} ./run
           sleep 2
@@ -160,6 +159,7 @@ jobs:
 
           scp=(scp -F ssh/vm.sshconf -r)
           $scp editor-demo user@vm:~/bin/
+          sudo unlink editor-demo
 
           d=${{env.DEV_DIR}}
           $scp $d/etc vm:/
@@ -243,7 +243,7 @@ jobs:
 
           args=(
             --posix
-            --use-compress-program='zstdmt --long -18v'
+            --use-compress-program='zstdmt --long -15v'
             -cf vm-editor-demo_${{env.CODENAME}}_${{matrix.arch}}.tar.zst
             $files
           )
