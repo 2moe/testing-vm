@@ -53,11 +53,13 @@ jobs:
       - name: copy bin to docker context
         env:
           bin_dir: ${{env.CARGO_TARGET_DIR}}/${{env.RS_PROF}}
-        run: install -Dm755 $bin_dir/${{env.PKG}} ${{env.DOCKER_DIR}}
+        run: |
+          tree -L 3 $bin_dir
+          install -Dm755 $bin_dir/${{env.PKG}} ${{env.DOCKER_DIR}}
 
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{env.DOCKER_DIR}}
-          push: true
-          tags: ghcr.io/2moe/testing-app:editor-demo-x64
+      # - name: Build and push
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     context: ${{env.DOCKER_DIR}}
+      #     push: true
+      #     tags: ghcr.io/2moe/testing-app:editor-demo-x64
