@@ -1,0 +1,9 @@
+[workspace]
+members = ["fltk/editor-demo"]
+resolver = "2"
+
+[profile.release]
+strip = true
+# lto = "thin"
+opt-level = "s"
+panic = "abort"

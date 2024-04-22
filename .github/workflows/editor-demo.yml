@@ -1,0 +1,62 @@
+name: build rs-pkg (fltk/editor-demo)
+# auto-task.start-build-time = ?
+
+env:
+  DEBIAN_FRONTEND: noninteractive
+
+on:
+  push:
+    paths:
+      - .github/workflows/editor-demo.yml
+      - assets/editor-demo/Dockerfile
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      PROFILE: release
+      CARGO_TARGET_DIR: /tmp/rs
+      PKG: editor-demo
+      DOCKER_DIR: assets/editor-demo
+
+    steps:
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            ${{env.CARGO_TARGET_DIR}}
+          key: ${{ runner.os }}-rs
+
+      - name: install cargo & rustc
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: actions/checkout@v4
+
+      - name: cargo build
+        run: |
+          sudo apt update
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev wayland-protocols libpango1.0-dev libdbus-1-dev
+          cargo -Vv
+          cargo build --profile ${{env.PROFILE}} --package ${{env.PKG}}
+
+      - name: copy bin to docker context
+        env:
+          bin_dir: ${{env.CARGO_TARGET_DIR}}/${{env.PROFILE}}
+        run: install -Dm755 $bin_dir/${{env.PKG}} ${{env.DOCKER_DIR}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{env.DOCKER_DIR}}
+          push: true
+          tags: ghcr.io/2moe/testing-app:editor-demo-x64
