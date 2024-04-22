@@ -20,7 +20,7 @@ for url (
 
 ```zsh
 command cat vm-editor-demo_sid_x64.tar.zst.0{0..2} > vm.tzst
-unlink vm-editor-demo_sid_*
+rm vm-editor-demo_sid_*
 ```
 
 3. extract tzst
