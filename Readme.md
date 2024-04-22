@@ -9,6 +9,8 @@ The editor-demo virtual machine is a KDE wayland environment for testing fltk wi
 run it on zsh.
 
 ```zsh
+cd $(mktemp -d)
+
 for url (
     "https://github.com/2moe/testing-vm/releases/download/kde/vm-editor-demo_sid_x64.tar.zst.0"{0..2}
 ) {
