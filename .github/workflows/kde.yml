@@ -98,8 +98,9 @@ jobs:
             useradd -m user
             usermod -aG sudo user
             cp -a ~/.ssh /home/user/
-            mkdir -p /home/user/.config
-            chown -Rv user:user /home/user/.ssh /home/user/.config
+            dirs=(/home/user/{.config,.ssh,bin})
+            mkdir -p $dirs
+            chown -Rv user:user $dirs
 
       - name: install grub
         uses: 2moe/local-ssh-action@v0
@@ -142,14 +143,19 @@ jobs:
           sed $sed_args
           ${{env.new_task}} ./run
           cat run
+
+          docker run --rm -v $PWD:/host ghcr.io/2moe/testing-app:editor-demo-x64 cp editor-demo /host
+
           sleep 6
           while {! ${{env.SSH_VM}} exit} {
             sleep 1
           }
+
           scp=(scp -F ssh/vm.sshconf -r)
           d=${{env.DEV_DIR}}
-          $scp $d/config/* user@vm:~/.config
+          $scp $d/config/* user@vm:~/.config/
           $scp $d/etc user@vm:/
+          $scp $d/editor-demo user@vm:~/bin/
 
       - name: install plasma desktop & fcitx5
         uses: 2moe/local-ssh-action@v0

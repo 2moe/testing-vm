@@ -1,0 +1,15 @@
+#!/usr/bin/env zsh
+set -fexo pipefail
+# ---------------
+src_dir=${0:a:h}
+sched +10 $src_dir/connect-to-ssh
+
+args=(
+    -vnc 127.0.0.1:5
+    -vga virtio
+    -device qemu-xhci
+    -device usb-kbd
+    -device usb-tablet
+    # -audio pa,model=hda
+)
+timeout 9 tmux new-session -s qemu "$src_dir/run $args" ||:
