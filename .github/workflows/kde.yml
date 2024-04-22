@@ -242,13 +242,15 @@ jobs:
             files+=$f
           }
 
+          file=vm-editor-demo_${{env.CODENAME}}_${{matrix.arch}}.tar.zst
           args=(
             --posix
-            --use-compress-program='zstdmt --long -15v'
-            -cf vm-editor-demo_${{env.CODENAME}}_${{matrix.arch}}.tar.zst
+            --use-compress-program='zstdmt --long -9v'
+            -cf $file
             $files
           )
           tar $args
+          split -b 1K -d $file ${file}.
 
       - name: release
         uses: softprops/action-gh-release@v2
@@ -256,4 +258,4 @@ jobs:
           fail_on_unmatched_files: true
           tag_name: ${{env.RELEASE_TAG}}
           files: |
-            *.tar.zst
+            *.tar.zst.*
